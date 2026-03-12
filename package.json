@@ -1,0 +1,16 @@
+{
+  "name": "agentcrm",
+  "version": "1.0.0",
+  "description": "CRM for AI Agents - File-based, automation-first",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "node src/index.js",
+    "test": "jest",
+    "company:create": "node src/cli/company-create.js",
+    "import:csv": "node src/cli/import-csv.js",
+    "agents:start": "node src/agents/index.js"
+  },
+  "keywords": ["crm", "ai-agents", "automation", "ndjson"],
+  "author": "AgentViz",
+  "license": "MIT"
+}
