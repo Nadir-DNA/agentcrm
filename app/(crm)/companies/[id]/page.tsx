@@ -1,19 +1,24 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
+import { buttonVariants } from "@/components/ui/button"
+import { Building2, Plus, Users, TrendingUp, Mail, DollarSign } from 'lucide-react'
 
+const STAGE_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
+  new: 'secondary', contacted: 'outline', qualified: 'outline',
+  proposal: 'outline', negotiation: 'default', won: 'default', lost: 'destructive',
+}
 const STAGE_LABELS: Record<string, string> = {
   new: 'Nouveau', contacted: 'Contacté', qualified: 'Qualifié',
   proposal: 'Proposition', negotiation: 'Négociation', won: 'Gagné', lost: 'Perdu',
 }
-const STAGE_COLORS: Record<string, string> = {
-  new: 'bg-zinc-700 text-zinc-300',
-  contacted: 'bg-blue-900 text-blue-300',
-  qualified: 'bg-indigo-900 text-indigo-300',
-  proposal: 'bg-violet-900 text-violet-300',
-  negotiation: 'bg-amber-900 text-amber-300',
-  won: 'bg-emerald-900 text-emerald-300',
-  lost: 'bg-red-900 text-red-300',
+const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
+  draft: 'outline', active: 'default', paused: 'secondary', completed: 'secondary',
 }
 
 export default async function CompanyPage({ params }: { params: Promise<{ id: string }> }) {
@@ -30,111 +35,144 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
 
   const wonCount = contacts?.filter(c => c.stage === 'won').length ?? 0
   const conversionRate = contacts?.length ? Math.round((wonCount / contacts.length) * 100) : 0
+  const totalValue = contacts?.reduce((s, c) => s + (c.value ?? 0), 0) ?? 0
 
   return (
-    <div className="p-8">
-      {/* Header */}
-      <div className="flex items-start justify-between mb-8">
-        <div>
-          <div className="flex items-center gap-2 text-sm text-zinc-500 mb-2">
-            <Link href="/companies" className="hover:text-zinc-300">Companies</Link>
-            <span>/</span>
-            <span className="text-zinc-300">{company.name}</span>
-          </div>
-          <h1 className="text-2xl font-bold text-white">{company.name}</h1>
-          {company.domain && <p className="text-zinc-400">{company.domain}</p>}
+    <div className="p-6 space-y-6">
+      {/* Breadcrumb + header */}
+      <div className="space-y-1">
+        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+          <Link href="/companies" className="hover:text-foreground transition-colors">Companies</Link>
+          <span>/</span>
+          <span className="text-foreground">{company.name}</span>
         </div>
-        <Link
-          href={`/companies/${id}/contacts/new`}
-          className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-        >
-          + Ajouter lead
-        </Link>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Building2 className="size-5 text-muted-foreground" />
+            <h1 className="text-xl font-semibold">{company.name}</h1>
+            {company.industry && <Badge variant="outline">{company.industry}</Badge>}
+          </div>
+          <Link href={`/companies/${id}/contacts/new`} className={buttonVariants({ size: 'sm' })}>
+            <Plus className="size-4" />
+            Ajouter lead
+          </Link>
+        </div>
+        {company.domain && <p className="text-sm text-muted-foreground">{company.domain}</p>}
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Leads', value: contacts?.length ?? 0 },
-          { label: 'Gagnés', value: wonCount },
-          { label: 'Conversion', value: `${conversionRate}%` },
-          { label: 'Campagnes', value: campaigns?.length ?? 0 },
-        ].map(({ label, value }) => (
-          <div key={label} className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-            <div className="text-2xl font-bold text-white">{value}</div>
-            <div className="text-sm text-zinc-400">{label}</div>
-          </div>
+          { label: 'Leads', value: contacts?.length ?? 0, icon: Users },
+          { label: 'Gagnés', value: wonCount, icon: TrendingUp },
+          { label: 'Conversion', value: `${conversionRate}%`, icon: TrendingUp },
+          { label: 'Pipeline', value: `${totalValue.toLocaleString('fr-FR')} €`, icon: DollarSign },
+        ].map(({ label, value, icon: Icon }) => (
+          <Card key={label}>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
+              <Icon className="size-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold tabular-nums">{value}</div>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
       {/* Leads table */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden mb-6">
-        <div className="px-6 py-4 border-b border-zinc-800 flex items-center justify-between">
-          <h2 className="font-semibold text-white">Leads ({contacts?.length ?? 0})</h2>
-        </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-zinc-800 text-zinc-400 text-left">
-              <th className="px-6 py-3 font-medium">Nom</th>
-              <th className="px-6 py-3 font-medium">Email</th>
-              <th className="px-6 py-3 font-medium">Titre</th>
-              <th className="px-6 py-3 font-medium">Stage</th>
-              <th className="px-6 py-3 font-medium">Valeur</th>
-            </tr>
-          </thead>
-          <tbody>
-            {contacts?.map((contact) => (
-              <tr key={contact.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
-                <td className="px-6 py-3">
-                  <Link href={`/contacts/${contact.id}`} className="text-white hover:text-blue-400">
-                    {contact.first_name} {contact.last_name}
-                  </Link>
-                </td>
-                <td className="px-6 py-3 text-zinc-400">{contact.email ?? '—'}</td>
-                <td className="px-6 py-3 text-zinc-400">{contact.title ?? '—'}</td>
-                <td className="px-6 py-3">
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${STAGE_COLORS[contact.stage]}`}>
-                    {STAGE_LABELS[contact.stage]}
-                  </span>
-                </td>
-                <td className="px-6 py-3 text-zinc-400">
-                  {contact.value ? `${contact.value.toLocaleString('fr-FR')} €` : '—'}
-                </td>
-              </tr>
-            ))}
-            {(!contacts || contacts.length === 0) && (
-              <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-zinc-500">
-                  Aucun lead. Ajoutez-en un.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Users className="size-4" />
+            Leads <Badge variant="secondary">{contacts?.length ?? 0}</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nom</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Titre</TableHead>
+                <TableHead>Stage</TableHead>
+                <TableHead className="text-right">Valeur</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {contacts?.map((contact) => (
+                <TableRow key={contact.id}>
+                  <TableCell>
+                    <Link href={`/contacts/${contact.id}`} className="font-medium hover:underline">
+                      {contact.first_name} {contact.last_name}
+                    </Link>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{contact.email ?? '—'}</TableCell>
+                  <TableCell className="text-muted-foreground">{contact.title ?? '—'}</TableCell>
+                  <TableCell>
+                    <Badge variant={STAGE_VARIANTS[contact.stage]}>
+                      {STAGE_LABELS[contact.stage]}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {contact.value ? `${Number(contact.value).toLocaleString('fr-FR')} €` : '—'}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {(!contacts || contacts.length === 0) && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    Aucun lead. Ajoutez-en un.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       {/* Campaigns */}
       {campaigns && campaigns.length > 0 && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-zinc-800">
-            <h2 className="font-semibold text-white">Campagnes</h2>
-          </div>
-          <div className="divide-y divide-zinc-800">
-            {campaigns.map((campaign) => (
-              <div key={campaign.id} className="px-6 py-4 flex items-center justify-between">
-                <div>
-                  <p className="text-white font-medium">{campaign.name}</p>
-                  <p className="text-sm text-zinc-400">{campaign.channel}</p>
-                </div>
-                <div className="flex gap-4 text-sm text-zinc-400">
-                  <span>📤 {campaign.sent_count}</span>
-                  <span>👁 {campaign.open_count}</span>
-                  <span>🖱 {campaign.click_count}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Mail className="size-4" />
+              Campagnes <Badge variant="secondary">{campaigns.length}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nom</TableHead>
+                  <TableHead>Statut</TableHead>
+                  <TableHead className="text-right">Envoyés</TableHead>
+                  <TableHead className="text-right">Ouverts</TableHead>
+                  <TableHead className="text-right">Clics</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {campaigns.map((campaign) => (
+                  <TableRow key={campaign.id}>
+                    <TableCell>
+                      <Link href={`/campaigns/${campaign.id}`} className="font-medium hover:underline">
+                        {campaign.name}
+                      </Link>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={STATUS_VARIANTS[campaign.status]}>
+                        {campaign.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums">{campaign.sent_count}</TableCell>
+                    <TableCell className="text-right tabular-nums">{campaign.open_count}</TableCell>
+                    <TableCell className="text-right tabular-nums">{campaign.click_count}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
     </div>
   )

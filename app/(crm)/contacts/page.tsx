@@ -1,14 +1,19 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
+import { Users } from 'lucide-react'
 
-const STAGE_COLORS: Record<string, string> = {
-  new: 'bg-zinc-700 text-zinc-300',
-  contacted: 'bg-blue-900 text-blue-300',
-  qualified: 'bg-indigo-900 text-indigo-300',
-  proposal: 'bg-violet-900 text-violet-300',
-  negotiation: 'bg-amber-900 text-amber-300',
-  won: 'bg-emerald-900 text-emerald-300',
-  lost: 'bg-red-900 text-red-300',
+const STAGE_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
+  new: 'secondary', contacted: 'outline', qualified: 'outline',
+  proposal: 'outline', negotiation: 'default', won: 'default', lost: 'destructive',
 }
 const STAGE_LABELS: Record<string, string> = {
   new: 'Nouveau', contacted: 'Contacté', qualified: 'Qualifié',
@@ -25,114 +30,102 @@ export default async function ContactsPage({
 
   let query = supabase
     .from('contacts')
-    .select('*, companies(name)')
+    .select('id, first_name, last_name, email, title, stage, value, source, company_id, companies:company_id(name)')
     .order('created_at', { ascending: false })
 
-  if (stage) query = query.eq('stage', stage)
-  if (company) query = query.eq('company_id', company)
+  if (stage && stage !== 'all') query = query.eq('stage', stage)
+  if (company && company !== 'all') query = query.eq('company_id', company)
   if (q) query = query.or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%`)
 
   const { data: contacts } = await query
   const { data: companies } = await supabase.from('companies').select('id, name').order('name')
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Leads</h1>
-          <p className="text-zinc-400 mt-1">{contacts?.length ?? 0} leads</p>
-        </div>
+    <div className="p-6 space-y-6">
+      <div className="flex items-center gap-2">
+        <Users className="size-5 text-muted-foreground" />
+        <h1 className="text-xl font-semibold">Leads</h1>
+        <Badge variant="secondary">{contacts?.length ?? 0}</Badge>
       </div>
 
       {/* Filters */}
-      <form className="flex gap-3 mb-6">
-        <input
-          name="q"
-          defaultValue={q}
-          placeholder="Rechercher..."
-          className="bg-zinc-900 border border-zinc-700 text-white text-sm rounded-lg px-3 py-2 w-48 focus:outline-none focus:border-blue-500"
-        />
-        <select
-          name="stage"
-          defaultValue={stage}
-          className="bg-zinc-900 border border-zinc-700 text-zinc-300 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
-        >
-          <option value="">Tous les stages</option>
-          {Object.entries(STAGE_LABELS).map(([v, l]) => (
-            <option key={v} value={v}>{l}</option>
-          ))}
-        </select>
-        <select
-          name="company"
-          defaultValue={company}
-          className="bg-zinc-900 border border-zinc-700 text-zinc-300 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500"
-        >
-          <option value="">Toutes les companies</option>
-          {companies?.map(c => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
-        <button
-          type="submit"
-          className="bg-zinc-800 hover:bg-zinc-700 text-white text-sm px-4 py-2 rounded-lg transition-colors"
-        >
-          Filtrer
-        </button>
+      <form className="flex flex-wrap gap-2">
+        <Input name="q" defaultValue={q} placeholder="Rechercher..." className="w-48" />
+        <Select name="stage" defaultValue={stage || 'all'}>
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Stage" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les stages</SelectItem>
+            {Object.entries(STAGE_LABELS).map(([v, l]) => (
+              <SelectItem key={v} value={v}>{l}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select name="company" defaultValue={company || 'all'}>
+          <SelectTrigger className="w-44">
+            <SelectValue placeholder="Company" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Toutes les companies</SelectItem>
+            {companies?.map(c => (
+              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button type="submit" variant="secondary" size="sm">Filtrer</Button>
       </form>
 
       {/* Table */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-zinc-800 text-zinc-400 text-left">
-              <th className="px-6 py-3 font-medium">Nom</th>
-              <th className="px-6 py-3 font-medium">Email</th>
-              <th className="px-6 py-3 font-medium">Company</th>
-              <th className="px-6 py-3 font-medium">Stage</th>
-              <th className="px-6 py-3 font-medium">Valeur</th>
-              <th className="px-6 py-3 font-medium">Source</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nom</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead>Company</TableHead>
+              <TableHead>Stage</TableHead>
+              <TableHead className="text-right">Valeur</TableHead>
+              <TableHead>Source</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {contacts?.map((contact) => (
-              <tr key={contact.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/30 transition-colors">
-                <td className="px-6 py-3">
-                  <Link href={`/contacts/${contact.id}`} className="text-white hover:text-blue-400 font-medium">
+              <TableRow key={contact.id}>
+                <TableCell>
+                  <Link href={`/contacts/${contact.id}`} className="font-medium hover:underline">
                     {contact.first_name} {contact.last_name}
                   </Link>
-                  {contact.title && <p className="text-xs text-zinc-500">{contact.title}</p>}
-                </td>
-                <td className="px-6 py-3 text-zinc-400">{contact.email ?? '—'}</td>
-                <td className="px-6 py-3">
+                  {contact.title && <p className="text-xs text-muted-foreground">{contact.title}</p>}
+                </TableCell>
+                <TableCell className="text-muted-foreground">{contact.email ?? '—'}</TableCell>
+                <TableCell>
                   {contact.companies ? (
-                    <Link
-                      href={`/companies/${contact.company_id}`}
-                      className="text-zinc-300 hover:text-blue-400 text-sm"
-                    >
+                    <Link href={`/companies/${contact.company_id}`} className="text-sm hover:underline">
                       {(contact.companies as unknown as { name: string }).name}
                     </Link>
                   ) : '—'}
-                </td>
-                <td className="px-6 py-3">
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${STAGE_COLORS[contact.stage]}`}>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={STAGE_VARIANTS[contact.stage]}>
                     {STAGE_LABELS[contact.stage]}
-                  </span>
-                </td>
-                <td className="px-6 py-3 text-zinc-400">
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right tabular-nums text-muted-foreground">
                   {contact.value ? `${Number(contact.value).toLocaleString('fr-FR')} €` : '—'}
-                </td>
-                <td className="px-6 py-3 text-zinc-400 text-xs">{contact.source ?? '—'}</td>
-              </tr>
+                </TableCell>
+                <TableCell className="text-muted-foreground text-sm">{contact.source ?? '—'}</TableCell>
+              </TableRow>
             ))}
             {(!contacts || contacts.length === 0) && (
-              <tr>
-                <td colSpan={6} className="px-6 py-10 text-center text-zinc-500">
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
                   Aucun lead trouvé.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   )

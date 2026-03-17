@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
+import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
-import { Geist } from "next/font/google";
-import { cn } from "@/lib/utils";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+const geistSans = Geist({ subsets: ['latin'], variable: '--font-sans' })
+const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-mono' })
 
 export const metadata: Metadata = {
   title: 'AgentCRM',
@@ -12,8 +12,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr" className={cn("font-sans", geist.variable)}>
-      <body className="min-h-screen bg-zinc-950 text-zinc-100 antialiased">
+    <html lang="fr" className={`dark ${geistSans.variable} ${geistMono.variable}`}>
+      <body className="min-h-screen bg-background text-foreground antialiased font-sans">
         {children}
       </body>
     </html>
