@@ -8,8 +8,8 @@ import { Input } from '@/components/ui/input'
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
-import { Button } from '@/components/ui/button'
-import { Users } from 'lucide-react'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { Users, Plus } from 'lucide-react'
 
 const STAGE_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   new: 'secondary', contacted: 'outline', qualified: 'outline',
@@ -42,10 +42,16 @@ export default async function ContactsPage({
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center gap-2">
-        <Users className="size-5 text-muted-foreground" />
-        <h1 className="text-xl font-semibold">Leads</h1>
-        <Badge variant="secondary">{contacts?.length ?? 0}</Badge>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Users className="size-5 text-muted-foreground" />
+          <h1 className="text-xl font-semibold">Leads</h1>
+          <Badge variant="secondary">{contacts?.length ?? 0}</Badge>
+        </div>
+        <Link href="/contacts/new" className={buttonVariants({ size: 'sm' })}>
+          <Plus className="size-4" />
+          Nouveau lead
+        </Link>
       </div>
 
       {/* Filters */}

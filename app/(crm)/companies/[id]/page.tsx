@@ -7,7 +7,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { buttonVariants } from "@/components/ui/button"
-import { Building2, Plus, Users, TrendingUp, Mail, DollarSign } from 'lucide-react'
+import { Building2, Plus, Users, TrendingUp, Mail, DollarSign, Pencil } from 'lucide-react'
 
 const STAGE_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   new: 'secondary', contacted: 'outline', qualified: 'outline',
@@ -52,10 +52,16 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
             <h1 className="text-xl font-semibold">{company.name}</h1>
             {company.industry && <Badge variant="outline">{company.industry}</Badge>}
           </div>
-          <Link href={`/companies/${id}/contacts/new`} className={buttonVariants({ size: 'sm' })}>
-            <Plus className="size-4" />
-            Ajouter lead
-          </Link>
+          <div className="flex gap-2">
+            <Link href={`/companies/${id}/edit`} className={buttonVariants({ variant: 'outline', size: 'sm' })}>
+              <Pencil className="size-3" />
+              Modifier
+            </Link>
+            <Link href={`/companies/${id}/contacts/new`} className={buttonVariants({ size: 'sm' })}>
+              <Plus className="size-4" />
+              Ajouter lead
+            </Link>
+          </div>
         </div>
         {company.domain && <p className="text-sm text-muted-foreground">{company.domain}</p>}
       </div>
