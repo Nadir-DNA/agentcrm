@@ -1,5 +1,11 @@
 node_modules/
+.pnp
+.next/
+out/
 .env
+.env.local
+.env.*.local
 .companies/
 *.ndjson
 .DS_Store
+npm-debug.log*

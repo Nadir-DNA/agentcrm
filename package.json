@@ -1,16 +1,35 @@
 {
   "name": "agentcrm",
-  "version": "1.0.0",
-  "description": "CRM for AI Agents - File-based, automation-first",
-  "main": "src/index.js",
+  "version": "2.0.0",
+  "description": "CRM - HubSpot + Lemlist level, file-based storage",
+  "private": true,
   "scripts": {
-    "dev": "node src/index.js",
-    "test": "jest",
-    "company:create": "node src/cli/company-create.js",
-    "import:csv": "node src/cli/import-csv.js",
-    "agents:start": "node src/agents/index.js"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
   },
-  "keywords": ["crm", "ai-agents", "automation", "ndjson"],
+  "keywords": [
+    "crm",
+    "ai-agents",
+    "automation",
+    "ndjson"
+  ],
   "author": "AgentViz",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "@supabase/ssr": "^0.9.0",
+    "@supabase/supabase-js": "^2.99.2",
+    "@tailwindcss/postcss": "^4.2.1",
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "autoprefixer": "^10.4.27",
+    "next": "^15.5.13",
+    "postcss": "^8.5.8",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tailwindcss": "^4.2.1",
+    "typescript": "^5.9.3"
+  }
 }
