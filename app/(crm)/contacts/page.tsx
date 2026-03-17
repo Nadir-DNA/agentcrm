@@ -33,7 +33,7 @@ export default async function ContactsPage({
     .select('id, first_name, last_name, email, title, stage, value, source, company_id, companies:company_id(name)')
     .order('created_at', { ascending: false })
 
-  if (stage && stage !== 'all') query = query.eq('stage', stage)
+  if (stage && stage !== 'all') query = query.eq('stage', stage as 'new' | 'contacted' | 'qualified' | 'proposal' | 'negotiation' | 'won' | 'lost')
   if (company && company !== 'all') query = query.eq('company_id', company)
   if (q) query = query.or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%`)
 
