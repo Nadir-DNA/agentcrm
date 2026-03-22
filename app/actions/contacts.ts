@@ -28,7 +28,7 @@ export async function createContact(prevState: { error?: string } | null | void,
     title: (formData.get('title') as string) || null,
     stage: ((formData.get('stage') as string) || 'new') as Enums<'contact_stage'>,
     source: (formData.get('source') as string) || null,
-    value: isNaN(value!) ? null : value,
+    value: value == null || isNaN(value) ? null : value,
     notes: (formData.get('notes') as string) || null,
   }).select('id').single()
 
@@ -53,7 +53,7 @@ export async function updateContact(id: string, companyId: string, prevState: { 
     title: (formData.get('title') as string) || null,
     stage: ((formData.get('stage') as string) || 'new') as Enums<'contact_stage'>,
     source: (formData.get('source') as string) || null,
-    value: isNaN(value!) ? null : value,
+    value: value == null || isNaN(value) ? null : value,
     notes: (formData.get('notes') as string) || null,
   }).eq('id', id)
 
@@ -67,7 +67,8 @@ export async function updateContact(id: string, companyId: string, prevState: { 
 
 export async function updateContactStage(id: string, companyId: string, stage: Enums<'contact_stage'>) {
   const supabase = await createClient()
-  await supabase.from('contacts').update({ stage, last_contacted_at: new Date().toISOString() }).eq('id', id)
+  const { error } = await supabase.from('contacts').update({ stage, last_contacted_at: new Date().toISOString() }).eq('id', id)
+  if (error) throw new Error(error.message)
   revalidatePath(`/contacts/${id}`)
   revalidatePath(`/companies/${companyId}`)
   revalidatePath('/contacts')
@@ -75,7 +76,8 @@ export async function updateContactStage(id: string, companyId: string, stage: E
 
 export async function deleteContact(id: string, companyId: string) {
   const supabase = await createClient()
-  await supabase.from('contacts').delete().eq('id', id)
+  const { error } = await supabase.from('contacts').delete().eq('id', id)
+  if (error) throw new Error(error.message)
   revalidatePath(`/companies/${companyId}`)
   revalidatePath('/contacts')
   redirect(`/companies/${companyId}`)

@@ -4,19 +4,11 @@ import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { buttonVariants } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
 import { StageSelector } from '@/components/stage-selector'
 import { DeleteContactButton } from '@/components/delete-contact-button'
-import { Users, Pencil, Mail, Phone, Building2, Calendar, Tag } from 'lucide-react'
-
-const STAGE_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  new: 'secondary', contacted: 'outline', qualified: 'outline',
-  proposal: 'outline', negotiation: 'default', won: 'default', lost: 'destructive',
-}
-const STAGE_LABELS: Record<string, string> = {
-  new: 'Nouveau', contacted: 'Contacté', qualified: 'Qualifié',
-  proposal: 'Proposition', negotiation: 'Négociation', won: 'Gagné', lost: 'Perdu',
-}
+import { Pencil, Mail, Phone, Building2, Calendar, Tag } from 'lucide-react'
+import { STAGE_VARIANTS, STAGE_LABELS } from '@/lib/constants'
+import type { ContactWithCompany } from '@/lib/supabase/types'
 
 export default async function ContactPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -37,7 +29,8 @@ export default async function ContactPage({ params }: { params: Promise<{ id: st
     .order('created_at', { ascending: false })
     .limit(10)
 
-  const company = contact.companies as unknown as { id: string; name: string } | null
+  const typedContact = contact as unknown as ContactWithCompany
+  const company = typedContact.companies
 
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
@@ -51,7 +44,7 @@ export default async function ContactPage({ params }: { params: Promise<{ id: st
           </div>
           <div className="flex items-center gap-3">
             <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
-              {contact.first_name[0]}{contact.last_name[0]}
+              {contact.first_name?.[0] ?? '?'}{contact.last_name?.[0] ?? '?'}
             </div>
             <div>
               <h1 className="text-xl font-semibold">{contact.first_name} {contact.last_name}</h1>

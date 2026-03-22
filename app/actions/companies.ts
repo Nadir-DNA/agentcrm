@@ -49,7 +49,8 @@ export async function updateCompany(id: string, prevState: { error?: string } | 
 
 export async function deleteCompany(id: string) {
   const supabase = await createClient()
-  await supabase.from('companies').delete().eq('id', id)
+  const { error } = await supabase.from('companies').delete().eq('id', id)
+  if (error) throw new Error(error.message)
   revalidatePath('/companies')
   redirect('/companies')
 }

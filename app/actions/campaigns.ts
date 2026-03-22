@@ -51,14 +51,16 @@ export async function updateCampaign(id: string, prevState: { error?: string } |
 
 export async function updateCampaignStatus(id: string, status: Enums<'campaign_status'>) {
   const supabase = await createClient()
-  await supabase.from('campaigns').update({ status }).eq('id', id)
+  const { error } = await supabase.from('campaigns').update({ status }).eq('id', id)
+  if (error) throw new Error(error.message)
   revalidatePath(`/campaigns/${id}`)
   revalidatePath('/campaigns')
 }
 
 export async function deleteCampaign(id: string) {
   const supabase = await createClient()
-  await supabase.from('campaigns').delete().eq('id', id)
+  const { error } = await supabase.from('campaigns').delete().eq('id', id)
+  if (error) throw new Error(error.message)
   revalidatePath('/campaigns')
   redirect('/campaigns')
 }

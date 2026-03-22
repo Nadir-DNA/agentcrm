@@ -15,30 +15,17 @@ import { CampaignStatusButton } from '@/components/campaign-status-button'
 import { EnrollContactsDialog } from '@/components/enroll-contacts-dialog'
 import { UnenrollContactButton } from '@/components/unenroll-contact-button'
 import { DeleteCampaignButton } from '@/components/delete-campaign-button'
-
-const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  draft: 'outline', active: 'default', paused: 'secondary', completed: 'secondary',
-}
-const STATUS_LABELS: Record<string, string> = {
-  draft: 'Brouillon', active: 'Active', paused: 'En pause', completed: 'Terminée',
-}
-const ENROLLMENT_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  enrolled: 'outline', sent: 'secondary', opened: 'default', clicked: 'default',
-  replied: 'default', unsubscribed: 'destructive', bounced: 'destructive',
-}
-const ENROLLMENT_LABELS: Record<string, string> = {
-  enrolled: 'Enrôlé', sent: 'Envoyé', opened: 'Ouvert', clicked: 'Cliqué',
-  replied: 'Répondu', unsubscribed: 'Désinscrit', bounced: 'Bounce',
-}
+import { STATUS_VARIANTS, STATUS_LABELS, ENROLLMENT_VARIANTS, ENROLLMENT_LABELS, CHANNEL_LABELS } from '@/lib/constants'
+import type { CampaignWithCompany, EnrolledContact, ContactForEnroll } from '@/lib/supabase/types'
 
 export default async function CampaignPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
 
   const [
-    { data: campaign },
-    { data: enrolled },
-    { data: allContacts },
+    { data: rawCampaign },
+    { data: rawEnrolled },
+    { data: rawAllContacts },
   ] = await Promise.all([
     supabase.from('campaigns')
       .select('*, companies:company_id(name)')
@@ -53,7 +40,11 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
       .order('first_name'),
   ])
 
-  if (!campaign) notFound()
+  if (!rawCampaign) notFound()
+
+  const campaign = rawCampaign as unknown as CampaignWithCompany
+  const enrolled = rawEnrolled as unknown as EnrolledContact[]
+  const allContacts = rawAllContacts as unknown as ContactForEnroll[]
 
   const enrolledIds = new Set(enrolled?.map(e => e.contact_id) ?? [])
 
@@ -64,7 +55,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
       first_name: c.first_name,
       last_name: c.last_name,
       email: c.email,
-      company_name: c.companies ? (c.companies as unknown as { name: string }).name : null,
+      company_name: c.companies ? c.companies.name : null,
     }))
 
   const openRate = campaign.sent_count > 0
@@ -77,9 +68,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
     ? Math.round((campaign.reply_count / campaign.sent_count) * 100)
     : 0
 
-  const companyName = campaign.companies
-    ? (campaign.companies as unknown as { name: string }).name
-    : null
+  const companyName = campaign.companies ? campaign.companies.name : null
 
   return (
     <div className="p-6 space-y-6">
@@ -151,10 +140,8 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
                 </TableHeader>
                 <TableBody>
                   {enrolled?.map((e) => {
-                    const contact = e.contacts as unknown as {
-                      id: string; first_name: string; last_name: string
-                      email: string | null; companies: { name: string } | null
-                    }
+                    const contact = e.contacts
+                    if (!contact) return null
                     return (
                       <TableRow key={e.id}>
                         <TableCell>
@@ -215,11 +202,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
                 <Mail className="size-4 text-muted-foreground mt-0.5" />
                 <div>
                   <div className="text-muted-foreground text-xs">Canal</div>
-                  <div>
-                    {campaign.channel === 'email' ? '📧 Email'
-                      : campaign.channel === 'sms' ? '💬 SMS'
-                      : '🔄 Séquence'}
-                  </div>
+                  <div>{CHANNEL_LABELS[campaign.channel]}</div>
                 </div>
               </div>
               {campaign.scheduled_at && (

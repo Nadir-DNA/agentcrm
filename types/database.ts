@@ -366,7 +366,7 @@ export type Database = {
         | "negotiation"
         | "won"
         | "lost"
-      enrollment_status: "active" | "completed" | "unsubscribed" | "bounced"
+      enrollment_status: "active" | "completed" | "unsubscribed" | "bounced" | "enrolled" | "sent" | "opened" | "clicked" | "replied"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -505,7 +505,7 @@ export const Constants = {
         "won",
         "lost",
       ],
-      enrollment_status: ["active", "completed", "unsubscribed", "bounced"],
+      enrollment_status: ["active", "completed", "unsubscribed", "bounced", "enrolled", "sent", "opened", "clicked", "replied"],
     },
   },
 } as const

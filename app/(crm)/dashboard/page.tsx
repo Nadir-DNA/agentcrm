@@ -14,24 +14,8 @@ import { PipelineFunnelChart } from '@/components/charts/pipeline-funnel'
 import { SourceDonutChart } from '@/components/charts/source-donut'
 import { CompaniesBarChart } from '@/components/charts/companies-bar'
 import { ActivityLineChart } from '@/components/charts/activity-line'
-
-const STAGES = [
-  { key: 'new', label: 'Nouveaux' },
-  { key: 'contacted', label: 'Contactés' },
-  { key: 'qualified', label: 'Qualifiés' },
-  { key: 'proposal', label: 'Proposition' },
-  { key: 'negotiation', label: 'Négociation' },
-  { key: 'won', label: 'Gagnés' },
-  { key: 'lost', label: 'Perdus' },
-]
-
-const STAGE_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  new: 'secondary', contacted: 'outline', qualified: 'outline',
-  proposal: 'outline', negotiation: 'default', won: 'default', lost: 'destructive',
-}
-const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  draft: 'outline', active: 'default', paused: 'secondary', completed: 'secondary',
-}
+import { STAGES, STAGE_VARIANTS, STAGE_LABELS, STATUS_VARIANTS, STATUS_LABELS } from '@/lib/constants'
+import type { ContactRow } from '@/lib/supabase/types'
 
 function trend(current: number, previous: number) {
   if (previous === 0) return current > 0 ? { pct: 100, up: true } : null
@@ -52,7 +36,7 @@ export default async function DashboardPage() {
   const prev30 = daysAgo(60)
 
   const [
-    { data: contacts },
+    { data: rawContacts },
     { data: companies },
     { data: campaigns },
     { count: leadsThisMonth },
@@ -68,6 +52,8 @@ export default async function DashboardPage() {
     supabase.from('companies').select('*', { count: 'exact', head: true }).gte('created_at', now30),
     supabase.from('companies').select('*', { count: 'exact', head: true }).gte('created_at', prev30).lt('created_at', now30),
   ])
+
+  const contacts = rawContacts as unknown as ContactRow[]
 
   // Pipeline stats
   const stageStats = (contacts ?? []).reduce<Record<string, { count: number; value: number }>>((acc, c) => {
@@ -103,7 +89,7 @@ export default async function DashboardPage() {
 
   // Top companies by pipeline value
   const companyValue = (contacts ?? []).reduce<Record<string, { name: string; value: number; leads: number }>>((acc, c) => {
-    const companyName = c.companies ? (c.companies as unknown as { name: string }).name : 'Inconnu'
+    const companyName = c.companies ? c.companies.name : 'Inconnu'
     if (!acc[companyName]) acc[companyName] = { name: companyName, value: 0, leads: 0 }
     acc[companyName].value += c.value ?? 0
     acc[companyName].leads++
@@ -278,11 +264,11 @@ export default async function DashboardPage() {
                       </Link>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {c.companies ? (c.companies as unknown as { name: string }).name : '—'}
+                      {c.companies ? c.companies.name : '—'}
                     </TableCell>
                     <TableCell>
                       <Badge variant={STAGE_VARIANTS[c.stage]} className="text-xs">
-                        {STAGES.find(s => s.key === c.stage)?.label ?? c.stage}
+                        {STAGE_LABELS[c.stage] ?? c.stage}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right text-sm tabular-nums text-muted-foreground">
@@ -333,10 +319,7 @@ export default async function DashboardPage() {
                       </TableCell>
                       <TableCell>
                         <Badge variant={STATUS_VARIANTS[c.status]} className="text-xs">
-                          {c.status === 'draft' ? 'Brouillon'
-                            : c.status === 'active' ? 'Active'
-                            : c.status === 'paused' ? 'En pause'
-                            : 'Terminée'}
+                          {STATUS_LABELS[c.status]}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-sm">{c.sent_count}</TableCell>
