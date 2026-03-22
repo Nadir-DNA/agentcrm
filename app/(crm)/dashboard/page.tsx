@@ -14,6 +14,7 @@ import { PipelineFunnelChart } from '@/components/charts/pipeline-funnel'
 import { SourceDonutChart } from '@/components/charts/source-donut'
 import { CompaniesBarChart } from '@/components/charts/companies-bar'
 import { ActivityLineChart } from '@/components/charts/activity-line'
+import { asOne } from '@/lib/utils'
 
 const STAGES = [
   { key: 'new', label: 'Nouveaux' },
@@ -103,7 +104,7 @@ export default async function DashboardPage() {
 
   // Top companies by pipeline value
   const companyValue = (contacts ?? []).reduce<Record<string, { name: string; value: number; leads: number }>>((acc, c) => {
-    const companyName = c.companies ? (c.companies as unknown as { name: string }).name : 'Inconnu'
+    const companyName = asOne(c.companies)?.name ?? 'Inconnu'
     if (!acc[companyName]) acc[companyName] = { name: companyName, value: 0, leads: 0 }
     acc[companyName].value += c.value ?? 0
     acc[companyName].leads++
@@ -278,7 +279,7 @@ export default async function DashboardPage() {
                       </Link>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {c.companies ? (c.companies as unknown as { name: string }).name : '—'}
+                      {asOne(c.companies)?.name ?? '—'}
                     </TableCell>
                     <TableCell>
                       <Badge variant={STAGE_VARIANTS[c.stage]} className="text-xs">

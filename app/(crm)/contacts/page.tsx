@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/select'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Users, Plus } from 'lucide-react'
+import { asOne } from '@/lib/utils'
 
 const STAGE_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   new: 'secondary', contacted: 'outline', qualified: 'outline',
@@ -108,7 +109,7 @@ export default async function ContactsPage({
                 <TableCell>
                   {contact.companies ? (
                     <Link href={`/companies/${contact.company_id}`} className="text-sm hover:underline">
-                      {(contact.companies as unknown as { name: string }).name}
+                      {asOne(contact.companies)?.name}
                     </Link>
                   ) : '—'}
                 </TableCell>

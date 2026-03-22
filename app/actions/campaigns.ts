@@ -51,14 +51,16 @@ export async function updateCampaign(id: string, prevState: { error?: string } |
 
 export async function updateCampaignStatus(id: string, status: Enums<'campaign_status'>) {
   const supabase = await createClient()
-  await supabase.from('campaigns').update({ status }).eq('id', id)
+  const { error } = await supabase.from('campaigns').update({ status }).eq('id', id)
+  if (error) return { error: error.message }
   revalidatePath(`/campaigns/${id}`)
   revalidatePath('/campaigns')
 }
 
 export async function deleteCampaign(id: string) {
   const supabase = await createClient()
-  await supabase.from('campaigns').delete().eq('id', id)
+  const { error } = await supabase.from('campaigns').delete().eq('id', id)
+  if (error) return { error: error.message }
   revalidatePath('/campaigns')
   redirect('/campaigns')
 }
@@ -69,7 +71,7 @@ export async function enrollContacts(campaignId: string, contactIds: string[]) {
   const rows = contactIds.map(contact_id => ({
     campaign_id: campaignId,
     contact_id,
-    status: 'enrolled' as Enums<'enrollment_status'>,
+    status: 'active' as Enums<'enrollment_status'>,
   }))
 
   const { error } = await supabase
@@ -92,10 +94,11 @@ export async function enrollContacts(campaignId: string, contactIds: string[]) {
 
 export async function unenrollContact(campaignId: string, contactId: string) {
   const supabase = await createClient()
-  await supabase.from('campaign_contacts')
+  const { error } = await supabase.from('campaign_contacts')
     .delete()
     .eq('campaign_id', campaignId)
     .eq('contact_id', contactId)
+  if (error) return { error: error.message }
 
   const { count } = await supabase
     .from('campaign_contacts')

@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator'
 import { StageSelector } from '@/components/stage-selector'
 import { DeleteContactButton } from '@/components/delete-contact-button'
 import { Users, Pencil, Mail, Phone, Building2, Calendar, Tag } from 'lucide-react'
+import { asOne } from '@/lib/utils'
 
 const STAGE_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   new: 'secondary', contacted: 'outline', qualified: 'outline',
@@ -37,7 +38,7 @@ export default async function ContactPage({ params }: { params: Promise<{ id: st
     .order('created_at', { ascending: false })
     .limit(10)
 
-  const company = contact.companies as unknown as { id: string; name: string } | null
+  const company = asOne(contact.companies) as { id: string; name: string } | null
 
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">

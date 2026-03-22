@@ -15,6 +15,7 @@ import { CampaignStatusButton } from '@/components/campaign-status-button'
 import { EnrollContactsDialog } from '@/components/enroll-contacts-dialog'
 import { UnenrollContactButton } from '@/components/unenroll-contact-button'
 import { DeleteCampaignButton } from '@/components/delete-campaign-button'
+import { asOne } from '@/lib/utils'
 
 const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   draft: 'outline', active: 'default', paused: 'secondary', completed: 'secondary',
@@ -23,12 +24,12 @@ const STATUS_LABELS: Record<string, string> = {
   draft: 'Brouillon', active: 'Active', paused: 'En pause', completed: 'Terminée',
 }
 const ENROLLMENT_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  enrolled: 'outline', sent: 'secondary', opened: 'default', clicked: 'default',
-  replied: 'default', unsubscribed: 'destructive', bounced: 'destructive',
+  active: 'default', completed: 'secondary',
+  unsubscribed: 'destructive', bounced: 'destructive',
 }
 const ENROLLMENT_LABELS: Record<string, string> = {
-  enrolled: 'Enrôlé', sent: 'Envoyé', opened: 'Ouvert', clicked: 'Cliqué',
-  replied: 'Répondu', unsubscribed: 'Désinscrit', bounced: 'Bounce',
+  active: 'Actif', completed: 'Terminé',
+  unsubscribed: 'Désinscrit', bounced: 'Bounce',
 }
 
 export default async function CampaignPage({ params }: { params: Promise<{ id: string }> }) {
@@ -64,7 +65,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
       first_name: c.first_name,
       last_name: c.last_name,
       email: c.email,
-      company_name: c.companies ? (c.companies as unknown as { name: string }).name : null,
+      company_name: asOne(c.companies)?.name ?? null,
     }))
 
   const openRate = campaign.sent_count > 0
@@ -77,9 +78,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
     ? Math.round((campaign.reply_count / campaign.sent_count) * 100)
     : 0
 
-  const companyName = campaign.companies
-    ? (campaign.companies as unknown as { name: string }).name
-    : null
+  const companyName = asOne(campaign.companies)?.name ?? null
 
   return (
     <div className="p-6 space-y-6">
@@ -151,10 +150,11 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
                 </TableHeader>
                 <TableBody>
                   {enrolled?.map((e) => {
-                    const contact = e.contacts as unknown as {
+                    const contact = asOne(e.contacts) as {
                       id: string; first_name: string; last_name: string
                       email: string | null; companies: { name: string } | null
-                    }
+                    } | null
+                    if (!contact) return null
                     return (
                       <TableRow key={e.id}>
                         <TableCell>
@@ -162,7 +162,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
                             {contact.first_name} {contact.last_name}
                           </Link>
                           {contact.companies && (
-                            <div className="text-xs text-muted-foreground">{contact.companies.name}</div>
+                            <div className="text-xs text-muted-foreground">{asOne(contact.companies)?.name}</div>
                           )}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">

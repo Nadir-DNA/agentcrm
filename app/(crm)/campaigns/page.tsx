@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { buttonVariants } from "@/components/ui/button"
 import { Mail, Plus, Send, Eye, MousePointerClick, MessageSquare } from 'lucide-react'
+import { asOne } from '@/lib/utils'
 
 const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   draft: 'outline', active: 'default', paused: 'secondary', completed: 'secondary',
@@ -101,9 +102,7 @@ export default async function CampaignsPage() {
                     </Link>
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
-                    {campaign.companies
-                      ? (campaign.companies as unknown as { name: string }).name
-                      : <span className="text-muted-foreground/50 italic">Global</span>}
+                    {asOne(campaign.companies)?.name ?? <span className="text-muted-foreground/50 italic">Global</span>}
                   </TableCell>
                   <TableCell className="text-sm">{CHANNEL_LABELS[campaign.channel]}</TableCell>
                   <TableCell>
