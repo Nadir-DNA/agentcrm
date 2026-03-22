@@ -10,14 +10,11 @@ import {
 } from '@/components/ui/select'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Users, Plus } from 'lucide-react'
+import { STAGE_VARIANTS, STAGE_LABELS } from '@/lib/constants'
+import type { ContactRow } from '@/lib/supabase/types'
 
-const STAGE_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  new: 'secondary', contacted: 'outline', qualified: 'outline',
-  proposal: 'outline', negotiation: 'default', won: 'default', lost: 'destructive',
-}
-const STAGE_LABELS: Record<string, string> = {
-  new: 'Nouveau', contacted: 'Contacté', qualified: 'Qualifié',
-  proposal: 'Proposition', negotiation: 'Négociation', won: 'Gagné', lost: 'Perdu',
+function sanitizePostgREST(value: string): string {
+  return value.replace(/[(),.*]/g, '')
 }
 
 export default async function ContactsPage({
@@ -35,7 +32,10 @@ export default async function ContactsPage({
 
   if (stage && stage !== 'all') query = query.eq('stage', stage as 'new' | 'contacted' | 'qualified' | 'proposal' | 'negotiation' | 'won' | 'lost')
   if (company && company !== 'all') query = query.eq('company_id', company)
-  if (q) query = query.or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%`)
+  if (q) {
+    const safe = sanitizePostgREST(q)
+    query = query.or(`first_name.ilike.%${safe}%,last_name.ilike.%${safe}%,email.ilike.%${safe}%`)
+  }
 
   const { data: contacts } = await query
   const { data: companies } = await supabase.from('companies').select('id, name').order('name')
@@ -96,7 +96,7 @@ export default async function ContactsPage({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {contacts?.map((contact) => (
+            {(contacts as unknown as ContactRow[])?.map((contact) => (
               <TableRow key={contact.id}>
                 <TableCell>
                   <Link href={`/contacts/${contact.id}`} className="font-medium hover:underline">
@@ -108,7 +108,7 @@ export default async function ContactsPage({
                 <TableCell>
                   {contact.companies ? (
                     <Link href={`/companies/${contact.company_id}`} className="text-sm hover:underline">
-                      {(contact.companies as unknown as { name: string }).name}
+                      {contact.companies.name}
                     </Link>
                   ) : '—'}
                 </TableCell>

@@ -7,24 +7,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { buttonVariants } from "@/components/ui/button"
 import { Mail, Plus, Send, Eye, MousePointerClick, MessageSquare } from 'lucide-react'
-
-const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  draft: 'outline', active: 'default', paused: 'secondary', completed: 'secondary',
-}
-const STATUS_LABELS: Record<string, string> = {
-  draft: 'Brouillon', active: 'Active', paused: 'En pause', completed: 'Terminée',
-}
-const CHANNEL_LABELS: Record<string, string> = {
-  email: '📧 Email', sms: '💬 SMS', sequence: '🔄 Séquence',
-}
+import { STATUS_VARIANTS, STATUS_LABELS, CHANNEL_LABELS } from '@/lib/constants'
+import type { CampaignWithCompany } from '@/lib/supabase/types'
 
 export default async function CampaignsPage() {
   const supabase = await createClient()
 
-  const { data: campaigns } = await supabase
+  const { data: rawCampaigns } = await supabase
     .from('campaigns')
     .select('*, companies:company_id(name)')
     .order('created_at', { ascending: false })
+
+  const campaigns = rawCampaigns as unknown as CampaignWithCompany[]
 
   const active = campaigns?.filter(c => c.status === 'active').length ?? 0
   const totalSent = campaigns?.reduce((s, c) => s + (c.sent_count ?? 0), 0) ?? 0
@@ -102,7 +96,7 @@ export default async function CampaignsPage() {
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
                     {campaign.companies
-                      ? (campaign.companies as unknown as { name: string }).name
+                      ? campaign.companies.name
                       : <span className="text-muted-foreground/50 italic">Global</span>}
                   </TableCell>
                   <TableCell className="text-sm">{CHANNEL_LABELS[campaign.channel]}</TableCell>
