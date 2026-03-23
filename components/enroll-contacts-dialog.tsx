@@ -80,6 +80,7 @@ export function EnrollContactsDialog({ campaignId, availableContacts }: Props) {
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="pl-8"
+              aria-label="Rechercher un contact"
             />
           </div>
 

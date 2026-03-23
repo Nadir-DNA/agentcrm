@@ -13,7 +13,7 @@ export function UnenrollContactButton({ campaignId, contactId }: Props) {
     <button
       className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-40"
       disabled={pending}
-      onClick={() => startTransition(() => unenrollContact(campaignId, contactId))}
+      onClick={() => startTransition(async () => { await unenrollContact(campaignId, contactId) })}
       title="Retirer de la campagne"
     >
       <X className="size-3.5" />

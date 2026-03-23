@@ -44,6 +44,8 @@ export function StageSelector({ contactId, companyId, currentStage }: Props) {
               key={value}
               onClick={() => handleChange(value)}
               disabled={isPending || active}
+              aria-label={`Passer au stage : ${label}`}
+              aria-pressed={active}
               className={cn(
                 'w-full text-left text-sm px-3 py-2 rounded-md border transition-all',
                 active
