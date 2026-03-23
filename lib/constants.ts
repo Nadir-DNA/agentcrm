@@ -41,3 +41,15 @@ export const ENROLLMENT_LABELS: Record<string, string> = {
 export const CHANNEL_LABELS: Record<string, string> = {
   email: '📧 Email', sms: '💬 SMS', sequence: '🔄 Séquence',
 }
+
+// Form options derived from constants — prevents duplication across form components
+export const STAGE_OPTIONS = Object.entries(STAGE_LABELS).map(([value, label]) => ({ value, label }))
+
+export const SOURCES = ['LinkedIn', 'Site web', 'Recommandation', 'Email', 'Événement', 'Cold outreach', 'Autre']
+
+export const INDUSTRIES = [
+  'SaaS', 'E-commerce', 'Fintech', 'Healthtech', 'Immobilier',
+  'Consulting', 'Agence', 'Retail', 'Industrie', 'Autre',
+]
+
+export const COMPANY_SIZES = ['1-10', '11-50', '51-200', '201-500', '500+']

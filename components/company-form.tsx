@@ -12,12 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import Link from 'next/link'
 import type { Tables } from '@/types/database'
-
-const INDUSTRIES = [
-  'SaaS', 'E-commerce', 'Fintech', 'Healthtech', 'Immobilier',
-  'Consulting', 'Agence', 'Retail', 'Industrie', 'Autre',
-]
-const SIZES = ['1-10', '11-50', '51-200', '201-500', '500+']
+import { INDUSTRIES, COMPANY_SIZES } from '@/lib/constants'
 
 type Props = {
   action: (prevState: { error?: string } | null | void, formData: FormData) => Promise<{ error?: string } | void>
@@ -76,7 +71,7 @@ export function CompanyForm({ action, company, cancelHref }: Props) {
                   <SelectValue placeholder="Nb employés..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {SIZES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  {COMPANY_SIZES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

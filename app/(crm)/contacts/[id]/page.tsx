@@ -43,7 +43,10 @@ export default async function ContactPage({ params }: { params: Promise<{ id: st
             <span className="text-foreground">{contact.first_name} {contact.last_name}</span>
           </div>
           <div className="flex items-center gap-3">
-            <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
+            <div
+              className="size-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary"
+              aria-label={`Avatar de ${contact.first_name} ${contact.last_name}`}
+            >
               {contact.first_name?.[0] ?? '?'}{contact.last_name?.[0] ?? '?'}
             </div>
             <div>
@@ -62,7 +65,7 @@ export default async function ContactPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Infos */}
         <div className="col-span-2 space-y-4">
           <Card>

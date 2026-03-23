@@ -3,81 +3,130 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { validateUUID, validateRequired, validateOptional, validateStage, ValidationError } from '@/lib/validation'
 import type { Enums } from '@/types/database'
 
-export async function createContact(prevState: { error?: string } | null | void, formData: FormData) {
+async function getAuthClient() {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  return { supabase, user }
+}
 
-  const firstName = formData.get('first_name') as string
-  const lastName = formData.get('last_name') as string
-  const companyId = formData.get('company_id') as string
+export async function createContact(prevState: { error?: string } | null | void, formData: FormData) {
+  try {
+    const { supabase, user } = await getAuthClient()
+    if (!user) return { error: 'Non autorisé' }
 
-  if (!firstName?.trim()) return { error: 'Le prénom est requis' }
-  if (!lastName?.trim()) return { error: 'Le nom est requis' }
-  if (!companyId) return { error: 'La company est requise' }
+    const firstName = validateRequired(formData, 'first_name', 'Le prénom')
+    const lastName = validateRequired(formData, 'last_name', 'Le nom')
+    const companyId = validateRequired(formData, 'company_id', 'La company')
+    validateUUID(companyId, 'Company ID')
 
-  const valueRaw = formData.get('value') as string
-  const value = valueRaw ? parseFloat(valueRaw) : null
+    const valueRaw = formData.get('value') as string
+    const value = valueRaw ? parseFloat(valueRaw) : null
 
-  const { data, error } = await supabase.from('contacts').insert({
-    first_name: firstName.trim(),
-    last_name: lastName.trim(),
-    company_id: companyId,
-    email: (formData.get('email') as string) || null,
-    phone: (formData.get('phone') as string) || null,
-    title: (formData.get('title') as string) || null,
-    stage: ((formData.get('stage') as string) || 'new') as Enums<'contact_stage'>,
-    source: (formData.get('source') as string) || null,
-    value: value == null || isNaN(value) ? null : value,
-    notes: (formData.get('notes') as string) || null,
-  }).select('id').single()
+    const { data, error } = await supabase.from('contacts').insert({
+      first_name: firstName,
+      last_name: lastName,
+      company_id: companyId,
+      email: validateOptional(formData, 'email'),
+      phone: validateOptional(formData, 'phone'),
+      title: validateOptional(formData, 'title'),
+      stage: validateStage(formData.get('stage')),
+      source: validateOptional(formData, 'source'),
+      value: value == null || isNaN(value) ? null : value,
+      notes: validateOptional(formData, 'notes'),
+    }).select('id').single()
 
-  if (error) return { error: error.message }
+    if (error) return { error: error.message }
 
-  revalidatePath(`/companies/${companyId}`)
-  revalidatePath('/contacts')
-  redirect(`/contacts/${data.id}`)
+    revalidatePath(`/companies/${companyId}`)
+    revalidatePath('/contacts')
+    redirect(`/contacts/${data.id}`)
+  } catch (err) {
+    if (err instanceof ValidationError) return { error: err.message }
+    throw err
+  }
 }
 
 export async function updateContact(id: string, companyId: string, prevState: { error?: string } | null | void, formData: FormData) {
-  const supabase = await createClient()
+  try {
+    const { supabase, user } = await getAuthClient()
+    if (!user) return { error: 'Non autorisé' }
 
-  const valueRaw = formData.get('value') as string
-  const value = valueRaw ? parseFloat(valueRaw) : null
+    validateUUID(id, 'Contact ID')
+    validateUUID(companyId, 'Company ID')
 
-  const { error } = await supabase.from('contacts').update({
-    first_name: (formData.get('first_name') as string).trim(),
-    last_name: (formData.get('last_name') as string).trim(),
-    email: (formData.get('email') as string) || null,
-    phone: (formData.get('phone') as string) || null,
-    title: (formData.get('title') as string) || null,
-    stage: ((formData.get('stage') as string) || 'new') as Enums<'contact_stage'>,
-    source: (formData.get('source') as string) || null,
-    value: value == null || isNaN(value) ? null : value,
-    notes: (formData.get('notes') as string) || null,
-  }).eq('id', id)
+    const firstName = validateRequired(formData, 'first_name', 'Le prénom')
+    const lastName = validateRequired(formData, 'last_name', 'Le nom')
+    const valueRaw = formData.get('value') as string
+    const value = valueRaw ? parseFloat(valueRaw) : null
+
+    const { error } = await supabase.from('contacts').update({
+      first_name: firstName,
+      last_name: lastName,
+      email: validateOptional(formData, 'email'),
+      phone: validateOptional(formData, 'phone'),
+      title: validateOptional(formData, 'title'),
+      stage: validateStage(formData.get('stage')),
+      source: validateOptional(formData, 'source'),
+      value: value == null || isNaN(value) ? null : value,
+      notes: validateOptional(formData, 'notes'),
+    }).eq('id', id)
+
+    if (error) return { error: error.message }
+
+    revalidatePath(`/contacts/${id}`)
+    revalidatePath(`/companies/${companyId}`)
+    revalidatePath('/contacts')
+    redirect(`/contacts/${id}`)
+  } catch (err) {
+    if (err instanceof ValidationError) return { error: err.message }
+    throw err
+  }
+}
+
+export async function updateContactStage(id: string, companyId: string, stage: Enums<'contact_stage'>): Promise<{ error?: string }> {
+  try {
+    validateUUID(id, 'Contact ID')
+    validateUUID(companyId, 'Company ID')
+    validateStage(stage)
+  } catch (err) {
+    if (err instanceof ValidationError) return { error: err.message }
+    return { error: 'Paramètres invalides' }
+  }
+
+  const { supabase, user } = await getAuthClient()
+  if (!user) return { error: 'Non autorisé' }
+
+  const { error } = await supabase
+    .from('contacts')
+    .update({ stage, last_contacted_at: new Date().toISOString() })
+    .eq('id', id)
 
   if (error) return { error: error.message }
 
   revalidatePath(`/contacts/${id}`)
   revalidatePath(`/companies/${companyId}`)
   revalidatePath('/contacts')
-  redirect(`/contacts/${id}`)
+  return {}
 }
 
-export async function updateContactStage(id: string, companyId: string, stage: Enums<'contact_stage'>) {
-  const supabase = await createClient()
-  const { error } = await supabase.from('contacts').update({ stage, last_contacted_at: new Date().toISOString() }).eq('id', id)
-  if (error) throw new Error(error.message)
-  revalidatePath(`/contacts/${id}`)
-  revalidatePath(`/companies/${companyId}`)
-  revalidatePath('/contacts')
-}
+export async function deleteContact(id: string, companyId: string): Promise<{ error?: string }> {
+  try {
+    validateUUID(id, 'Contact ID')
+    validateUUID(companyId, 'Company ID')
+  } catch (err) {
+    if (err instanceof ValidationError) return { error: err.message }
+    return { error: 'ID invalide' }
+  }
 
-export async function deleteContact(id: string, companyId: string) {
-  const supabase = await createClient()
+  const { supabase, user } = await getAuthClient()
+  if (!user) return { error: 'Non autorisé' }
+
   const { error } = await supabase.from('contacts').delete().eq('id', id)
-  if (error) throw new Error(error.message)
+  if (error) return { error: error.message }
+
   revalidatePath(`/companies/${companyId}`)
   revalidatePath('/contacts')
   redirect(`/companies/${companyId}`)

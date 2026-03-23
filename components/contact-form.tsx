@@ -11,18 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import Link from 'next/link'
 import type { Tables } from '@/types/database'
-
-const STAGES = [
-  { value: 'new', label: 'Nouveau' },
-  { value: 'contacted', label: 'Contacté' },
-  { value: 'qualified', label: 'Qualifié' },
-  { value: 'proposal', label: 'Proposition' },
-  { value: 'negotiation', label: 'Négociation' },
-  { value: 'won', label: 'Gagné' },
-  { value: 'lost', label: 'Perdu' },
-]
-
-const SOURCES = ['LinkedIn', 'Site web', 'Recommandation', 'Email', 'Événement', 'Cold outreach', 'Autre']
+import { STAGE_OPTIONS, SOURCES } from '@/lib/constants'
 
 type Props = {
   action: (prevState: { error?: string } | null | void, formData: FormData) => Promise<{ error?: string } | void>
@@ -97,7 +86,7 @@ export function ContactForm({ action, contact, companies, defaultCompanyId, canc
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {STAGES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                    {STAGE_OPTIONS.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

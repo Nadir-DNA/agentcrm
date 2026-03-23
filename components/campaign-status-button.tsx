@@ -28,7 +28,7 @@ export function CampaignStatusButton({ id, currentStatus }: Props) {
       size="sm"
       variant={currentStatus === 'active' ? 'outline' : 'default'}
       disabled={pending}
-      onClick={() => startTransition(() => updateCampaignStatus(id, transition.next))}
+      onClick={() => startTransition(async () => { await updateCampaignStatus(id, transition.next) })}
     >
       {pending ? '...' : transition.label}
     </Button>

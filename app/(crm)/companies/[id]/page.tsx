@@ -13,27 +13,7 @@ import {
   Globe, Tag, Hash,
 } from 'lucide-react'
 import { CompanyPipelineChart } from '@/components/charts/company-pipeline'
-
-const STAGES = [
-  { key: 'new', label: 'Nouveaux' },
-  { key: 'contacted', label: 'Contactés' },
-  { key: 'qualified', label: 'Qualifiés' },
-  { key: 'proposal', label: 'Proposition' },
-  { key: 'negotiation', label: 'Négociation' },
-  { key: 'won', label: 'Gagnés' },
-  { key: 'lost', label: 'Perdus' },
-]
-
-const STAGE_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  new: 'secondary', contacted: 'outline', qualified: 'outline',
-  proposal: 'outline', negotiation: 'default', won: 'default', lost: 'destructive',
-}
-const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  draft: 'outline', active: 'default', paused: 'secondary', completed: 'secondary',
-}
-const STATUS_LABELS: Record<string, string> = {
-  draft: 'Brouillon', active: 'Active', paused: 'En pause', completed: 'Terminée',
-}
+import { STAGES, STAGE_VARIANTS, STATUS_VARIANTS, STATUS_LABELS } from '@/lib/constants'
 
 export default async function CompanyPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
