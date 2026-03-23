@@ -1,170 +1,146 @@
-# Code Review - AgentCRM (niveau Lemlist)
+# Code Review Complet — AgentCRM (niveau Lemlist)
 
 ## Contexte
 
-AgentCRM est un CRM Next.js 15 + Supabase censé atteindre le niveau HubSpot + Lemlist. Après revue complète du code, plusieurs bugs critiques, incohérences de types, failles de sécurité et duplications de code ont été identifiés. Ce plan corrige tous les problèmes trouvés.
+Revue complète du code après merge sur main. L'objectif est d'identifier TOUS les problèmes restants pour atteindre un niveau de qualité production (comme Lemlist). 3 agents ont audité en parallèle : server actions/sécurité, pages/UI/components, et infra/types/config.
 
 ---
 
-## 1. BUG CRITIQUE : Mismatch enum `enrollment_status`
+## CRITIQUE — Sécurité & Auth
 
-**Le problème :** La DB définit l'enum `enrollment_status` comme `"active" | "completed" | "unsubscribed" | "bounced"`, mais le code UI et les server actions utilisent des valeurs qui n'existent PAS dans la DB : `enrolled`, `sent`, `opened`, `clicked`, `replied`.
-
-- `app/actions/campaigns.ts:72` — insère `'enrolled'` qui n'est pas dans l'enum DB → **crash runtime garanti**
-- `app/(crm)/campaigns/[id]/page.tsx:25-31` — les maps `ENROLLMENT_VARIANTS` et `ENROLLMENT_LABELS` utilisent des clés fantômes
-
-**Fix :** Créer une migration Supabase pour aligner l'enum DB avec les besoins réels de l'app :
-```sql
-ALTER TYPE enrollment_status ADD VALUE IF NOT EXISTS 'enrolled';
-ALTER TYPE enrollment_status ADD VALUE IF NOT EXISTS 'sent';
-ALTER TYPE enrollment_status ADD VALUE IF NOT EXISTS 'opened';
-ALTER TYPE enrollment_status ADD VALUE IF NOT EXISTS 'clicked';
-ALTER TYPE enrollment_status ADD VALUE IF NOT EXISTS 'replied';
-```
-Et mettre à jour `types/database.ts` pour refléter le nouvel enum.
-
-**Fichiers :**
-- `supabase/migrations/` — nouvelle migration
-- `types/database.ts:369` — mettre à jour l'enum
-- `types/database.ts:508` — mettre à jour les Constants
-
----
-
-## 2. Faille sécurité : Injection SQL via recherche contacts
-
-**Le problème :** `app/(crm)/contacts/page.tsx:38`
+### C1. AUCUNE vérification d'authentification dans les server actions
+- **Fichiers :** `app/actions/companies.ts`, `app/actions/campaigns.ts`, `app/actions/contacts.ts`
+- **Problème :** Les 13 fonctions exportées (createCompany, updateCompany, deleteCompany, createCampaign, updateCampaign, updateCampaignStatus, deleteCampaign, enrollContacts, unenrollContact, createContact, updateContact, updateContactStage, deleteContact) ne vérifient JAMAIS l'identité de l'utilisateur.
+- **Impact :** N'importe qui peut créer/modifier/supprimer n'importe quelle donnée.
+- **Fix :** Ajouter en haut de chaque fonction :
 ```typescript
-if (q) query = query.or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%`)
+const { data: { user } } = await supabase.auth.getUser()
+if (!user) return { error: 'Non autorisé' }
 ```
-Le paramètre `q` vient des searchParams et est interpolé directement dans la chaîne PostgREST. Un utilisateur malveillant pourrait injecter des opérateurs PostgREST.
 
-**Fix :** Sanitizer la valeur `q` en échappant les caractères spéciaux PostgREST (virgules, points, parenthèses).
+### C2. Policies RLS trop permissives
+- **Fichier :** `supabase/migrations/20260317120000_initial.sql:126-135`
+- **Problème :** Toutes les policies utilisent `for all using (true)` — aucune isolation par utilisateur.
+- **Fix :** Implémenter des policies basées sur `auth.uid()` ou une table d'appartenance organisation.
 
-**Fichier :** `app/(crm)/contacts/page.tsx`
+### C3. Pas de middleware d'authentification
+- **Problème :** Aucun fichier `middleware.ts` — les routes protégées sont accessibles sans session.
+- **Fix :** Créer `middleware.ts` avec vérification de session Supabase et redirection vers `/login`.
 
----
-
-## 3. Unsafe `isNaN(value!)` avec non-null assertion
-
-**Le problème :** `app/actions/contacts.ts:31,56`
-```typescript
-value: isNaN(value!) ? null : value,
-```
-`value` peut être `null` (si `valueRaw` est vide). L'opérateur `!` force un non-null assertion sur une valeur potentiellement null. `isNaN(null!)` fonctionne en JS mais c'est un anti-pattern TypeScript dangereux.
-
-**Fix :** Remplacer par `value == null || isNaN(value) ? null : value`
-
-**Fichier :** `app/actions/contacts.ts`
-
----
-
-## 4. `as unknown as` — Typage Supabase cassé (8 occurrences)
-
-**Le problème :** Les relations Supabase retournent des objets typés, mais le code force des `as unknown as` partout car les types générés ne matchent pas les queries avec `select('*, companies:company_id(name)')`.
-
-**Fix :** Créer un fichier `lib/supabase/types.ts` avec des types helper pour les queries avec relations, et remplacer les 8 occurrences de `as unknown as`.
-
-**Fichiers :**
-- `lib/supabase/types.ts` (nouveau)
-- `app/(crm)/dashboard/page.tsx:106,281`
-- `app/(crm)/contacts/[id]/page.tsx:40`
-- `app/(crm)/contacts/page.tsx:111`
-- `app/(crm)/campaigns/[id]/page.tsx:67,81,154`
-- `app/(crm)/campaigns/page.tsx:105`
+### C4. Validation d'input manquante partout
+- **Fichiers :** Toutes les server actions
+- **Problème :**
+  - IDs jamais validés (format UUID, appartenance à l'utilisateur)
+  - Enum values castées sans validation (`as Enums<'campaign_channel'>` sans vérifier la valeur)
+  - `enrollContacts` accepte un array `contactIds` sans limite de taille → risque DoS
+  - `FormData.get()` castées `as string` sans null-check
+- **Fix :** Créer un utilitaire de validation (`lib/validation.ts`) avec : `validateUUID()`, `validateEnum()`, `validateRequired()`
 
 ---
 
-## 5. Duplication des constantes STAGE/STATUS (4 fichiers)
+## HAUTE — Bugs & Robustesse
 
-**Le problème :** `STAGE_VARIANTS`, `STAGE_LABELS`, `STATUS_VARIANTS`, `STATUS_LABELS` sont copiés-collés dans :
-- `app/(crm)/dashboard/page.tsx`
-- `app/(crm)/contacts/page.tsx`
-- `app/(crm)/contacts/[id]/page.tsx`
-- `app/(crm)/campaigns/[id]/page.tsx`
-- `app/(crm)/campaigns/page.tsx`
+### H1. Error handling inconsistant dans les server actions
+- **Fichiers :** Les 3 fichiers d'actions
+- **Problème :**
+  - `createCompany` retourne `{ error }` mais `deleteCompany` throw
+  - `updateCampaignStatus` throw mais `enrollContacts` retourne `{ error }`
+  - `unenrollContact` ne check PAS l'erreur du `.delete()` (campaigns.ts:97-100)
+  - `updateContactStage` n'a pas de return value
+- **Fix :** Standardiser : toutes les fonctions retournent `{ error?: string }` et ne throw jamais.
 
-**Fix :** Extraire dans `lib/constants.ts` et importer partout.
+### H2. Constantes encore dupliquées dans `companies/[id]/page.tsx`
+- **Fichier :** `app/(crm)/companies/[id]/page.tsx:17-36`
+- **Problème :** STAGES, STAGE_VARIANTS, STATUS_VARIANTS, STATUS_LABELS sont redéfinis localement au lieu d'importer de `@/lib/constants`
+- **Fix :** Remplacer par `import { STAGES, STAGE_VARIANTS, STATUS_VARIANTS, STATUS_LABELS } from '@/lib/constants'`
 
-**Fichier :** `lib/constants.ts` (nouveau) + les 5 fichiers ci-dessus
+### H3. Variables d'environnement sans validation runtime
+- **Fichiers :** `lib/supabase/server.ts:9-10`, `lib/supabase/client.ts:6-7`
+- **Problème :** Non-null assertions `!` sur `process.env.NEXT_PUBLIC_SUPABASE_URL!` — crash cryptique si manquant.
+- **Fix :** Créer `lib/env.ts` avec validation au démarrage.
 
----
-
-## 6. Crash potentiel : accès `contact.first_name[0]` sans guard
-
-**Le problème :** `app/(crm)/contacts/[id]/page.tsx:54`
-```tsx
-{contact.first_name[0]}{contact.last_name[0]}
-```
-Si `first_name` ou `last_name` est une chaîne vide (`""`), `[0]` retourne `undefined` — pas de crash, mais affichage cassé. Le champ est `NOT NULL` en DB mais pourrait être `""`.
-
-**Fix :** Ajouter un fallback : `(contact.first_name?.[0] ?? '?')`
-
-**Fichier :** `app/(crm)/contacts/[id]/page.tsx`
-
----
-
-## 7. Pas de gestion d'erreur sur les Promise.all
-
-**Le problème :**
-- `app/(crm)/dashboard/page.tsx:62` — 7 requêtes en parallèle, si une échoue la page crash entière
-- `app/(crm)/campaigns/[id]/page.tsx:42` — 3 requêtes en parallèle
-- `app/(crm)/companies/page.tsx:18` — 2 requêtes en parallèle
-
-Supabase ne throw pas par défaut (retourne `{ data, error }`), mais si le client Supabase a un problème réseau, tout explose.
-
-**Fix :** Ajouter des fichiers `error.tsx` pour les routes principales pour gérer les erreurs gracieusement.
-
-**Fichiers :**
-- `app/(crm)/error.tsx` (nouveau)
-- `app/(crm)/dashboard/error.tsx` (nouveau)
+### H4. Transaction manquante dans `enrollContacts`
+- **Fichier :** `app/actions/campaigns.ts:68-93`
+- **Problème :** L'upsert des contacts et la mise à jour du `sent_count` sont 2 requêtes séparées. Si la 2e échoue, le count est désynchronisé.
+- **Fix :** Vérifier l'erreur de la 2e requête, ou utiliser une fonction Postgres.
 
 ---
 
-## 8. Server actions sans gestion d'erreur sur delete/update
+## MOYENNE — UI/UX & Qualité
 
-**Le problème :**
-- `app/actions/contacts.ts:70,78` — `updateContactStage` et `deleteContact` font `await supabase...` sans vérifier `error`
-- `app/actions/campaigns.ts:54,61` — `updateCampaignStatus` et `deleteCampaign` idem
-- `app/actions/companies.ts:52` — `deleteCompany` idem
+### M1. Aucun `loading.tsx` dans tout le projet
+- **Problème :** Pas de skeleton/loading UI pendant le chargement des pages.
+- **Fix :** Ajouter `loading.tsx` pour `/dashboard`, `/contacts`, `/companies`, `/campaigns`.
 
-Si la DB retourne une erreur (ex: FK constraint), elle est silencieusement ignorée.
+### M2. Error boundaries manquants (13 routes sans)
+- **Routes sans `error.tsx` :** companies/, companies/new, companies/[id], companies/[id]/edit, companies/[id]/contacts/new, contacts/, contacts/new, contacts/[id], contacts/[id]/edit, campaigns/, campaigns/new, campaigns/[id], campaigns/[id]/edit
+- **Fix :** Le `error.tsx` racine à `app/(crm)/error.tsx` couvre les routes enfants, mais les routes profondes comme companies/[id]/edit pourraient bénéficier d'un error boundary plus spécifique.
 
-**Fix :** Vérifier `error` et retourner/throw si nécessaire.
+### M3. Accessibilité — problèmes multiples
+- `delete-contact-button.tsx:12` et `delete-campaign-button.tsx:20` : utilisent `confirm()` natif au lieu d'un dialog accessible
+- `enroll-contacts-dialog.tsx:78` : input de recherche sans `aria-label`
+- `stage-selector.tsx:43-59` : boutons sans `aria-label`
+- `contacts/[id]/page.tsx:46-47` : avatar sans `aria-label`
 
-**Fichiers :**
-- `app/actions/contacts.ts`
-- `app/actions/campaigns.ts`
-- `app/actions/companies.ts`
+### M4. Pas de Suspense boundaries pour le data fetching
+- `dashboard/page.tsx` : 7 requêtes Promise.all sans Suspense
+- `companies/page.tsx` : 2 requêtes sans Suspense
+- `contacts/page.tsx` : requêtes sans Suspense
+- **Fix :** Wrapper les sections data-heavy dans `<Suspense fallback={<Loading/>}>` avec des composants async.
+
+### M5. Formulaires — manques
+- `contact-form.tsx:15-25` : STAGES et SOURCES définis localement au lieu d'importés de constants
+- `company-form.tsx:16-20` : INDUSTRIES et SIZES hardcodés
+- Aucune validation client-side avant soumission
+- Pas d'erreurs par champ (seulement une erreur globale `state?.error`)
+
+### M6. Responsive design
+- `contacts/[id]/page.tsx:65` : `grid-cols-3` non responsive sur mobile
 
 ---
 
-## 9. Import `Separator` non utilisé
+## BASSE — Config & Maintenance
 
-**Le problème :** `app/(crm)/contacts/[id]/page.tsx:7` importe `Separator` mais ne l'utilise jamais.
+### B1. Vulnérabilité Next.js (moderate)
+- Next.js 15.5.13 a une vulnérabilité moderate (GHSA-3x4c-7xq6-9pq8) : croissance illimitée du cache disque pour next/image
+- **Fix :** `npm audit fix` ou upgrade Next.js
 
-**Fix :** Supprimer l'import.
+### B2. Scripts manquants dans package.json
+- Pas de script `test`, `type-check`, `format`
+- **Fix :** Ajouter `"type-check": "tsc --noEmit"`, `"format": "prettier --write ."`
 
-**Fichier :** `app/(crm)/contacts/[id]/page.tsx`
+### B3. next.config.ts quasi vide
+- Aucune config d'optimisation d'images, headers de sécurité, rewrites
+- **Fix :** Ajouter les headers de sécurité basiques (CSP, X-Frame-Options, etc.)
+
+### B4. Variables d'environnement inutilisées
+- `.env.example` contient REDIS_URL, VERCEL_TOKEN, TWILIO_SID qui ne sont pas utilisés dans le code
+- **Fix :** Nettoyer `.env.example`
+
+### B5. Mot de passe minimum trop court
+- `supabase/config.toml:175` : `minimum_password_length = 6` — devrait être 8+ en production
+
+### B6. Sidebar dupliquée
+- `components/sidebar.tsx` semble inutilisé (remplacé par `components/app-sidebar.tsx`)
+- **Fix :** Supprimer `components/sidebar.tsx`
 
 ---
 
-## Ordre d'exécution
+## Ordre de priorité recommandé
 
-1. Créer `lib/constants.ts` (constantes partagées)
-2. Créer `lib/supabase/types.ts` (types helper pour relations)
-3. Créer la migration Supabase pour l'enum `enrollment_status`
-4. Mettre à jour `types/database.ts`
-5. Fixer les server actions (error handling + isNaN)
-6. Fixer l'injection PostgREST dans contacts/page.tsx
-7. Refactorer les pages pour utiliser les constantes/types partagés
-8. Ajouter les error boundaries
-9. Nettoyer les imports inutilisés
-10. Build pour vérifier que tout compile
+1. **Auth middleware** (`middleware.ts`) + vérification auth dans les server actions
+2. **Validation d'inputs** (UUID, enum, required fields, array size limits)
+3. **Standardiser error handling** dans toutes les server actions
+4. **RLS policies** — implémenter l'isolation par utilisateur
+5. **Constantes dupliquées** — cleanup companies/[id] + forms
+6. **Loading states** + Suspense boundaries
+7. **Accessibilité** — aria-labels, dialogs accessibles
+8. **Config** — next.config headers, env validation, npm audit fix
 
 ## Vérification
 
 ```bash
-npm run build
-npm run lint
+npm run build    # Types + imports OK
+npm run lint     # Style OK
+npx tsc --noEmit # Double-check types
 ```
-Le build Next.js vérifiera les types TypeScript et les imports. Le lint vérifiera le style.
